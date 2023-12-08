@@ -1,4 +1,5 @@
 #pragma once
+#include <cassert>
 #include <initializer_list>
 #include <stdexcept>
 #include <utility>
@@ -34,44 +35,37 @@ public:
     SimpleVector() noexcept = default;
 
     // Создаёт вектор из size элементов, инициализированных значением по умолчанию
-    explicit SimpleVector(size_t size) {
+    explicit SimpleVector(size_t size)
+        :size_(size), capacity_(size)
+    {
         ArrayPtr<Type> new_items(size);
-        
         for(size_t i = 0; i < size;++i){
             new_items[i] = move(Type());
         }
-
         items_.swap(new_items);
-        size_ = size;
-        capacity_ = size;
     }
 
     // Создаёт вектор из size элементов, инициализированных значением value
-    SimpleVector(size_t size, const Type& value) {
+    SimpleVector(size_t size, const Type& value)
+        :size_(size),capacity_(size) 
+    {
         ArrayPtr<Type> new_items(size);
-        
         for(size_t i = 0; i < size;++i){
             new_items[i] = move(value);
         }
-        
         items_.swap(new_items);
-        size_ = size;
-        capacity_ = size;
     }
 
     // Создаёт вектор из std::initializer_list
-    SimpleVector(std::initializer_list<Type> init) {
-        size_t size = init.size();
-        ArrayPtr<Type> new_items(size);
-        
+    SimpleVector(std::initializer_list<Type> init)
+        :size_(init.size()), capacity_(init.size()) 
+    {
+        ArrayPtr<Type> new_items(init.size());
         size_t index = 0;
         for(Type element : init){
             new_items[index++] = move(element); 
         }
-        
         items_.swap(new_items);
-        size_ = size;
-        capacity_ = size;
     }
 
     explicit SimpleVector(ReserveProxyObj obj)
@@ -79,15 +73,15 @@ public:
         Reserve(obj.GetCapacity());
     }
 
-    SimpleVector(const SimpleVector<Type>& other){
+    SimpleVector(const SimpleVector<Type>& other)
+    :size_(other.GetSize()),
+    capacity_(other.GetSize()){
         size_t new_size = other.GetSize();
         ArrayPtr<Type> new_items(new_size);
         for(size_t i = 0; i < new_size;++i){
             new_items[i] = other[i];
         }
         items_.swap(new_items);
-        size_ = new_size;
-        capacity_ = new_size;
     }
 
     SimpleVector(SimpleVector<Type>&& other){
@@ -104,13 +98,11 @@ public:
     // Возвращает количество элементов в массиве
     size_t GetSize() const noexcept {
         return size_;
-        return 0;
     }
 
     // Возвращает вместимость массива
     size_t GetCapacity() const noexcept {
         return capacity_;
-        return 0;
     }
 
     // Сообщает, пустой ли массив
@@ -120,11 +112,13 @@ public:
 
     // Возвращает ссылку на элемент с индексом index
     Type& operator[](size_t index) noexcept {
+        assert(index >= 0 && index < size_);
         return items_[index];
     }
 
     // Возвращает константную ссылку на элемент с индексом index
     const Type& operator[](size_t index) const noexcept {
+        assert(index >= 0 && index < size_);
         return items_[index];
     }
 
@@ -182,6 +176,7 @@ public:
             capacity_ = std::max(new_size,capacity_ * 2);
         }
     }
+    
     void Reserve(size_t new_capacity){
         if(new_capacity <= capacity_){
             return;
@@ -242,9 +237,7 @@ public:
         }
     }
     Iterator Insert(ConstIterator pos, const Type& value){
-        if(pos < begin() || pos > end()){
-            throw std::out_of_range("Uncorrect pos");
-        }
+        assert(pos >= begin() && pos <= end());
         size_t pos_index = pos - items_.Get();
         if(size_ < capacity_){
             for(size_t i = size_; i > pos_index;--i){
@@ -253,7 +246,7 @@ public:
             items_[pos_index] = value;
             ++size_;
         } else{
-            if(size_){
+            if(!IsEmpty()){
                 ArrayPtr<Type> new_items(capacity_*2);
                 for(size_t i = 0; i < pos_index;++i){
                     new_items[i] = items_[i];
@@ -278,9 +271,7 @@ public:
     }
 
     Iterator Insert(ConstIterator pos, Type&& value){
-        if(pos < begin() || pos > end()){
-            throw std::out_of_range("Uncorrect pos");
-        }
+        assert(pos >= begin() && pos <= end());
         size_t pos_index = pos - items_.Get();
         if(size_ < capacity_){
             for(size_t i = size_; i > pos_index;--i){
@@ -289,7 +280,7 @@ public:
             items_[pos_index] = move(value);
             ++size_;
         } else{
-            if(size_){
+            if(!IsEmpty()){
                 ArrayPtr<Type> new_items(capacity_*2);
                 for(size_t i = 0; i < pos_index;++i){
                     new_items[i] = move(items_[i]);
@@ -386,16 +377,16 @@ bool operator<(const SimpleVector<Type>& lhs, const SimpleVector<Type>& rhs) {
 }
 
 template <typename Type>
-bool operator<=(const SimpleVector<Type>& lhs, const SimpleVector<Type>& rhs) {
-    return (lhs < rhs || lhs == rhs);
+bool operator>(const SimpleVector<Type>& lhs, const SimpleVector<Type>& rhs) {
+    return !(lhs < rhs || lhs == rhs);
 }
 
 template <typename Type>
-bool operator>(const SimpleVector<Type>& lhs, const SimpleVector<Type>& rhs) {
-    return !(lhs <= rhs);
+bool operator<=(const SimpleVector<Type>& lhs, const SimpleVector<Type>& rhs) {
+    return !(lhs > rhs);
 }
 
 template <typename Type>
 bool operator>=(const SimpleVector<Type>& lhs, const SimpleVector<Type>& rhs) {
-    return (lhs > rhs || lhs == rhs);
+    return !(lhs < rhs);
 }
