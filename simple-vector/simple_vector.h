@@ -36,10 +36,10 @@ public:
 
     // Создаёт вектор из size элементов, инициализированных значением по умолчанию
     explicit SimpleVector(size_t size)
-        :size_(size), capacity_(size)
+        :size_(size), capacity_(size), items_(size)
     {
         ArrayPtr<Type> new_items(size);
-        for(size_t i = 0; i < size;++i){
+        for(size_t i = 0; i < size; ++i){
             new_items[i] = move(Type());
         }
         items_.swap(new_items);
@@ -47,10 +47,10 @@ public:
 
     // Создаёт вектор из size элементов, инициализированных значением value
     SimpleVector(size_t size, const Type& value)
-        :size_(size),capacity_(size) 
+        :size_(size),capacity_(size), items_(size) 
     {
         ArrayPtr<Type> new_items(size);
-        for(size_t i = 0; i < size;++i){
+        for(size_t i = 0; i < size; ++i){
             new_items[i] = move(value);
         }
         items_.swap(new_items);
@@ -58,7 +58,7 @@ public:
 
     // Создаёт вектор из std::initializer_list
     SimpleVector(std::initializer_list<Type> init)
-        :size_(init.size()), capacity_(init.size()) 
+        :size_(init.size()), capacity_(init.size()), items_(init.size()) 
     {
         ArrayPtr<Type> new_items(init.size());
         size_t index = 0;
@@ -78,7 +78,7 @@ public:
     capacity_(other.GetSize()){
         size_t new_size = other.GetSize();
         ArrayPtr<Type> new_items(new_size);
-        for(size_t i = 0; i < new_size;++i){
+        for(size_t i = 0; i < new_size; ++i){
             new_items[i] = other[i];
         }
         items_.swap(new_items);
@@ -112,13 +112,13 @@ public:
 
     // Возвращает ссылку на элемент с индексом index
     Type& operator[](size_t index) noexcept {
-        assert(index >= 0 && index < size_);
+        assert(index < size_);
         return items_[index];
     }
 
     // Возвращает константную ссылку на элемент с индексом index
     const Type& operator[](size_t index) const noexcept {
-        assert(index >= 0 && index < size_);
+        assert(index < size_);
         return items_[index];
     }
 
@@ -165,10 +165,10 @@ public:
             size_ = new_size;
         } else{
             ArrayPtr<Type> new_items(new_size);
-            for(size_t i = 0; i < size_;++i){
+            for(size_t i = 0; i < size_; ++i){
                 new_items[i] = move(items_[i]);
             }
-            for(size_t i = size_; i < new_size;++i){
+            for(size_t i = size_; i < new_size; ++i){
                 new_items[i] = move(Type());
             }
             items_.swap(new_items);
@@ -185,7 +185,7 @@ public:
             for(size_t i = 0; i < size_;++i){
                 new_items[i] = move(items_[i]); 
             }
-            for(size_t i = size_; i < new_capacity;++i){
+            for(size_t i = size_; i < new_capacity; ++i){
                 new_items[i] = move(Type()); 
             }
 
@@ -202,8 +202,8 @@ public:
             if(capacity_ == 0){
                 ++capacity_;
             } 
-            ArrayPtr<Type> new_items(capacity_*2);
-            for(size_t i = 0; i <size_;++i){
+            ArrayPtr<Type> new_items(capacity_ * 2);
+            for(size_t i = 0; i < size_; ++i){
                 new_items[i] = items_[i];
             }
             new_items[size_] = value;
@@ -246,25 +246,18 @@ public:
             items_[pos_index] = value;
             ++size_;
         } else{
-            if(!IsEmpty()){
-                ArrayPtr<Type> new_items(capacity_*2);
-                for(size_t i = 0; i < pos_index;++i){
-                    new_items[i] = items_[i];
-                }
-                new_items[pos_index] = move(value);
-                for(size_t i = pos_index + 1; i <= size_;++i){
-                    new_items[i] = items_[i-1];
-                }
-                items_.swap(new_items);
-                ++size_;
-                capacity_ *= 2;
-            } else {
-                ArrayPtr<Type> new_items(1);
-                new_items[0] = value;
-                items_.swap(new_items);
-                size_ = 1;
-                capacity_ = 1; 
+            size_t new_capacity = IsEmpty() ? 1 : capacity_ * 2;
+            ArrayPtr<Type> new_items(new_capacity);
+            for(size_t i = 0; i < pos_index;++i){
+                new_items[i] = items_[i];
             }
+            new_items[pos_index] = move(value);
+            for(size_t i = pos_index + 1; i <= size_;++i){
+                new_items[i] = items_[i-1];
+            }
+            items_.swap(new_items);
+            ++size_;
+            capacity_ = new_capacity;
         }
 
         return const_cast<Iterator>(begin()+pos_index); 
@@ -280,25 +273,18 @@ public:
             items_[pos_index] = move(value);
             ++size_;
         } else{
-            if(!IsEmpty()){
-                ArrayPtr<Type> new_items(capacity_*2);
-                for(size_t i = 0; i < pos_index;++i){
-                    new_items[i] = move(items_[i]);
-                }
-                new_items[pos_index] = move(value);
-                for(size_t i = pos_index + 1; i <= size_;++i){
-                    new_items[i] = move(items_[i-1]);
-                }
-                items_.swap(new_items);
-                ++size_;
-                capacity_ *= 2;
-            } else {
-                ArrayPtr<Type> new_items(1);
-                new_items[0] = move(value);
-                items_.swap(new_items);
-                size_ = 1;
-                capacity_ = 1; 
+            size_t new_capacity = IsEmpty() ? 1 : capacity_ * 2;
+            ArrayPtr<Type> new_items(new_capacity);
+            for(size_t i = 0; i < pos_index;++i){
+                new_items[i] = move(items_[i]);
             }
+            new_items[pos_index] = move(value);
+            for(size_t i = pos_index + 1; i <= size_;++i){
+                new_items[i] = move(items_[i-1]);
+            }
+            items_.swap(new_items);
+            ++size_;
+            capacity_ = new_capacity;
         }
 
         return const_cast<Iterator>(begin()+pos_index); 
@@ -378,7 +364,10 @@ bool operator<(const SimpleVector<Type>& lhs, const SimpleVector<Type>& rhs) {
 
 template <typename Type>
 bool operator>(const SimpleVector<Type>& lhs, const SimpleVector<Type>& rhs) {
-    return !(lhs < rhs || lhs == rhs);
+    return std::lexicographical_compare(
+        rhs.cbegin(),rhs.cend(),
+        lhs.cbegin(),lhs.cend()
+    );
 }
 
 template <typename Type>
